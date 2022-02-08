@@ -106,4 +106,6 @@ func main() {
 		log.Info("No response recieved from host: ", err)
 	}
 	log.Info("Byte Response: ", string(respBytes))
+
+	// TODO Build secret retrieval with Auth Token
 }
