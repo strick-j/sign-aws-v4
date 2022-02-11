@@ -118,7 +118,7 @@ func main() {
 	v := reflect.ValueOf(conjur)
 	for i := 0; i < v.NumField(); i++ {
 		if v.Field(i).Interface() == "" {
-			log.Info("Conjur Environment Variable not set: ", v.Field(i).Interface())
+			log.WithFields(log.Fields{"Environment Variable": err}).Fatal("Conjur Environment Variable not set: ", v.Field(i))
 		}
 	}
 
