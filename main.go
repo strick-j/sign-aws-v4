@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -15,6 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
 	"github.com/codingconcepts/env"
+	"github.com/cyberark/conjur-api-go/conjurapi"
+	"github.com/cyberark/conjur-api-go/conjurapi/authn"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -27,10 +30,10 @@ type SigHeader struct {
 }
 
 type ConjurDetails struct {
-	Url       string `env:"CONJUR_APPLIANCE_URL" required="true"` // Conjur Host e.g. https://conjur.yourdomain.com
-	Acct      string `env:"CONJUR_ACCOUNT" required="true"`       // Conjur Account e.g. default
-	HostId    string `env:"CONJUR_AUTHN_LOGIN" required="true"`   // Host to Authenticate as e.g. host/policy/prefix/id
-	ServiceId string `env:"AUTHN_IAM_SERVICE_ID" required="true"` // Authentication Service e.g. prod
+	Url       string `env:"CONJUR_APPLIANCE_URL" required:"true"` // Conjur Host e.g. https://conjur.yourdomain.com
+	Acct      string `env:"CONJUR_ACCOUNT" required:"true"`       // Conjur Account e.g. default
+	HostId    string `env:"CONJUR_AUTHN_LOGIN" required:"true"`   // Host to Authenticate as e.g. host/policy/prefix/id
+	ServiceId string `env:"AUTHN_IAM_SERVICE_ID" required:"true"` // Authentication Service e.g. prod
 }
 
 var (
@@ -39,17 +42,26 @@ var (
 	region            string = "us-east-1" // Region must be us-east-1 for the IAM Service Call
 )
 
-func init() {
-	// Log as JSON instead of the default ASCII formatter.
+func main() {
+	variableIdPtr := flag.String("variable", "", "Conjur Secret ID (e.g. policy/path/variable-id")
+	logLevelPtr := flag.String("loglevel", "Info", "Log Level: Info, Debug")
+	flag.Parse()
+
+	// Log as Text instead of the default ASCII formatter.
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
 
-	// Only log the Info severity or above.
-	log.SetLevel(log.InfoLevel)
-}
+	// Set log level based on flag
+	switch {
+	case *logLevelPtr == "Debug":
+		log.SetLevel(log.DebugLevel)
+	case *logLevelPtr == "Info":
+		log.SetLevel(log.InfoLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 
-func main() {
 	// Returns initialized Provider using EC2 IMDS Client by default
 	svc := ec2rolecreds.New(func(options *ec2rolecreds.Options) {
 		expTime := time.Now().UTC().Add(1 * time.Hour).Format("2006-01-02T15:04:05Z")
@@ -116,9 +128,10 @@ func main() {
 
 	// Ensure Conjur Details are available and the fields aren't empty
 	v := reflect.ValueOf(conjur)
+	st := reflect.TypeOf(conjur)
 	for i := 0; i < v.NumField(); i++ {
 		if v.Field(i).Interface() == "" {
-			log.WithFields(log.Fields{"Environment Variable": err}).Fatal("Conjur Environment Variable not set: ", v.Field(i))
+			log.WithFields(log.Fields{"Environment Variable": st.Field(i).Tag}).Fatal("Conjur Environment Variable not set")
 		}
 	}
 
@@ -150,9 +163,35 @@ func main() {
 	}
 	defer resp.Body.Close()
 
+	// Generate response Body from Conjur
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.WithFields(log.Fields{"event": err}).Fatal("Response Body Empty")
 	}
-	log.WithFields(log.Fields{"Response": "Success"}).Info("Host Response: ", string(respBytes))
+	log.WithFields(log.Fields{"Response": "Success"}).Debug("Host Response: ", string(respBytes))
+
+	// Generate Conjur Authentication Token from Conjur Byte Response
+	conjurToken, err := authn.NewToken(respBytes)
+	if err != nil {
+		log.WithFields(log.Fields{"event": err}).Fatal("Unable to parse Conjur Response")
+	}
+
+	// Load config from .netrc, .conjurrc, or ENV
+	conConfig, err := conjurapi.LoadConfig()
+	if err != nil {
+		log.WithFields(log.Fields{"event": err}).Fatal("Unable to load Conjur Config")
+	}
+
+	// Create Conjur Client from Authentication Token and Config
+	conjurClient, err := conjurapi.NewClientFromToken(conConfig, string(conjurToken.Raw()))
+	if err != nil {
+		log.WithFields(log.Fields{"event": err}).Fatal("Unable to create Conjur Client")
+	}
+
+	// Retrieve Secret
+	secretValue, err := conjurClient.RetrieveSecret(*variableIdPtr)
+	if err != nil {
+		log.WithFields(log.Fields{"event": err}).Fatal("Unable to retrieve Secret")
+	}
+	log.WithFields(log.Fields{"category": "credentials"}).Info("Secret Value: ", string(secretValue))
 }
