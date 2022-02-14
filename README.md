@@ -13,7 +13,15 @@ X-Amz-Date: 20150830T123600Z
 5. The Conjur authn-iam authenticator validates the Sigv4 request against the STS service and if validated provides a Conjur Authentication Token for the host
 6. Uses the Conjur Authentication Token to retrieve a defined secret
 
-### EC2 Usage
+## Install
+Install or build locally:
+```
+go get github.com/strick-j/sign-aws-v4
+cd ~/go/src/github.com/strick-j/sign-aws-v4
+go build
+```
+
+## EC2 Usage
 Prior to using the application, ensure the following Environment Variables are set and available:
 ```
 $ export CONJUR_APPLIANCE_URL=https://conjur.yourorg.com
@@ -22,7 +30,7 @@ $ export CONJUR_AUTHN_LOGIN=host/cust-portal/<aws-account-id>/<iam-role-name>
 $ export CONJUR_ACCOUNT=<account>
 ```
 
-### Examples
+## Examples
 ```
 ./sign-aws-v4 -variable=path/policy/variable-id -loglevel=Info
 ```
