@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"reflect"
+	"strings"
 	"time"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -44,7 +45,7 @@ var (
 
 func main() {
 	variableIdPtr := flag.String("variable", "", "Conjur Secret ID (e.g. policy/path/variable-id")
-	logLevelPtr := flag.String("loglevel", "Info", "Log Level: Info, Debug")
+	logLevelPtr := flag.String("loglevel", "info", "Log Level: info or debug")
 	flag.Parse()
 
 	// Log as Text instead of the default ASCII formatter.
@@ -54,11 +55,12 @@ func main() {
 
 	// Set log level based on flag
 	switch {
-	case *logLevelPtr == "Debug":
+	case strings.ToLower(*logLevelPtr) == "debug":
 		log.SetLevel(log.DebugLevel)
-	case *logLevelPtr == "Info":
+	case strings.ToLower(*logLevelPtr) == "info":
 		log.SetLevel(log.InfoLevel)
 	default:
+		log.WithFields(log.Fields{"Category": "Settings"}).Info("Log level not provided, using default: Info")
 		log.SetLevel(log.InfoLevel)
 	}
 

@@ -24,10 +24,10 @@ go build
 ## EC2 Usage
 Prior to using the application, ensure the following Environment Variables are set and available:
 ```
-$ export CONJUR_APPLIANCE_URL=https://conjur.yourorg.com
-$ export AUTHN_IAM_SERVICE_ID=<service-id>
-$ export CONJUR_AUTHN_LOGIN=host/cust-portal/<aws-account-id>/<iam-role-name>
-$ export CONJUR_ACCOUNT=<account>
+export CONJUR_APPLIANCE_URL=https://conjur.yourorg.com
+export AUTHN_IAM_SERVICE_ID=<service-id>
+export CONJUR_AUTHN_LOGIN=host/cust-portal/<aws-account-id>/<iam-role-name>
+export CONJUR_ACCOUNT=<account>
 ```
 
 ## Examples
