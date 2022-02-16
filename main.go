@@ -60,7 +60,6 @@ func main() {
 	case strings.ToLower(*logLevelPtr) == "info":
 		log.SetLevel(log.InfoLevel)
 	default:
-		log.WithFields(log.Fields{"Category": "Settings"}).Info("Log level not provided, using default: Info")
 		log.SetLevel(log.InfoLevel)
 	}
 
